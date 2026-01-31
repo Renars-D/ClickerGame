@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Click Counter</title>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
+}
+
+#circle {
+  width: 150px;
+  height: 150px;
+  background-color: #4285F4;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 20px;
+  transition: transform 0.1s;
+}
+
+#circle:active {
+  transform: scale(0.9);
+}
+
+#counter {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.upgrade {
+  margin: 5px;
+  padding: 10px 15px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.upgrade:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.float {
+  position: absolute;
+  font-weight: bold;
+  color: #4285F4;
+  animation: floatUp 1s forwards;
+  pointer-events: none;
+}
+
+@keyframes floatUp {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-40px); }
+}
+</style>
+</head>
+
+<body>
+
+<div id="circle">Click</div>
+<div id="counter">Clicks: 0</div>
+
+<button class="upgrade" id="x2">Buy 2x (50)</button>
+<button class="upgrade" id="plus10">Buy +10 (100)</button>
+<button class="upgrade" id="x3">Buy 3x (200)</button>
+
+<button class="upgrade" id="auto">Auto +1/sec (1000)</button>
+<button class="upgrade" id="autoMulti">Auto Multiplier x2 (2000)</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const circle = document.getElementById("circle");
+  const counter = document.getElementById("counter");
+
+  let clicks = +localStorage.getItem("clicks") || 0;
+  let multiplier = +localStorage.getItem("multiplier") || 1;
+  let bonus = +localStorage.getItem("bonus") || 0;
+
+  let autoClickers = +localStorage.getItem("autoClickers") || 0;
+  let autoMultiplier = +localStorage.getItem("autoMultiplier") || 1;
+  let autoCost = +localStorage.getItem("autoCost") || 1000;
+  let autoMultiCost = +localStorage.getItem("autoMultiCost") || 1000;
+
+  let boughtX2 = localStorage.getItem("boughtX2") === "true";
+  let boughtX3 = localStorage.getItem("boughtX3") === "true";
+  let boughtPlus10 = localStorage.getItem("boughtPlus10") === "true";
+
+  // 🔊 SOUND ENGINE
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playSound(freq, duration = 0.08) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  function update() {
+    counter.textContent = `Clicks: ${clicks}`;
+    document.getElementById("auto").textContent =
+      `Auto +1/sec (${autoCost})`;
+    document.getElementById("autoMulti").textContent =
+      `Auto Multiplier x${autoMultiplier + 1} (${autoMultiCost})`;
+
+    localStorage.setItem("clicks", clicks);
+    localStorage.setItem("multiplier", multiplier);
+    localStorage.setItem("bonus", bonus);
+    localStorage.setItem("autoClickers", autoClickers);
+    localStorage.setItem("autoMultiplier", autoMultiplier);
+    localStorage.setItem("autoCost", autoCost);
+    localStorage.setItem("autoMultiCost", autoMultiCost);
+    localStorage.setItem("boughtX2", boughtX2);
+    localStorage.setItem("boughtX3", boughtX3);
+    localStorage.setItem("boughtPlus10", boughtPlus10);
+
+    document.getElementById("x2").disabled = boughtX2;
+    document.getElementById("x3").disabled = boughtX3;
+    document.getElementById("plus10").disabled = boughtPlus10;
+  }
+
+  update();
+
+  function floatText(text) {
+    const el = document.createElement("div");
+    el.className = "float";
+    el.textContent = text;
+    el.style.left = `${circle.getBoundingClientRect().left + 60}px`;
+    el.style.top = `${circle.getBoundingClientRect().top}px`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
+  circle.onclick = () => {
+    const gain = (1 + bonus) * multiplier;
+    clicks += gain;
+    playSound(600);
+    floatText(`+${gain}`);
+    update();
+  };
+
+  document.getElementById("x2").onclick = () => {
+    if (!boughtX2 && clicks >= 50) {
+      clicks -= 50;
+      multiplier = 2;
+      boughtX2 = true;
+      playSound(300);
+      update();
+    }
+  };
+
+  document.getElementById("x3").onclick = () => {
+    if (!boughtX3 && clicks >= 200) {
+      clicks -= 200;
+      multiplier = 3;
+      boughtX3 = true;
+      playSound(300);
+      update();
+    }
+  };
+
+  document.getElementById("plus10").onclick = () => {
+    if (!boughtPlus10 && clicks >= 100) {
+      clicks -= 100;
+      bonus += 10;
+      boughtPlus10 = true;
+      playSound(300);
+      update();
+    }
+  };
+
+  document.getElementById("auto").onclick = () => {
+    if (clicks >= autoCost) {
+      clicks -= autoCost;
+      autoClickers++;
+      autoCost = Math.floor(autoCost * 1.5);
+      playSound(200);
+      update();
+    }
+  };
+
+  document.getElementById("autoMulti").onclick = () => {
+    if (clicks >= autoMultiCost) {
+      clicks -= autoMultiCost;
+      autoMultiplier++;
+      autoMultiCost = Math.floor(autoMultiCost * 2);
+      playSound(150);
+      update();
+    }
+  };
+
+  setInterval(() => {
+    const autoGain = autoClickers * autoMultiplier;
+    if (autoGain > 0) {
+      clicks += autoGain;
+      update();
+    }
+  }, 1000);
+
+});
+</script>
+
+</body>
+</html>
